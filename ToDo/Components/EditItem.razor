@@ -1,0 +1,68 @@
+﻿@using ToDo.Data
+@inject ToDoService ToDoService
+
+<Icon Type="edit" Theme="outline" OnClick="() => ShowModal()" Style="cursor:pointer"/>
+
+@{
+    RenderFragment footer =
+    @<Template>
+                <Button OnClick="@HandleOk" Type="primary">Submit</Button>
+                <Button OnClick="@HandleCancel" Type="primary" Style="background-color:white; color:red">Cancel</Button>
+    </Template>;
+}
+
+<Modal Title="@("Editing")" Visible="@_visible" OnOk="@HandleOk" OnCancel="@HandleCancel" Footer="@footer">
+    <Form Model="@Item" LabelColSpan="8" WrapperColSpan="16" OnFinish="OnFinish" @ref="@_form">
+        <FormItem Label="Title">
+            <Input @bind-Value="@Item.Title" />
+        </FormItem>
+        <FormItem Label="Description">
+            <Input @bind-Value="@Item.Description" />
+        </FormItem>
+        <FormItem Label="Created">
+            <p>@Item.CreatedTime</p>
+        </FormItem>
+        <FormItem Label="Done?">
+            <Checkbox @bind-Value="@Item.IsDone" Checked="@Item.IsDone"/>
+        </FormItem>
+    </Form>  
+</Modal>
+
+@code {
+    [Parameter]
+    public ToDoItem Item { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnEditConfirmClick { get; set; }
+
+    private Form<ToDoItem> _form;
+    bool _visible = false;
+
+    public void ShowModal()
+    {
+        _visible = true;
+    }
+
+    private async Task HandleOk()
+    {
+        if (_form.EditContext != null && _form.EditContext.Validate())
+        {
+            var item = (ToDoItem)_form.EditContext.Model;
+            if (item.IsDone)
+                item.DoneTime = DateTime.Now;
+            await ToDoService.Update(item);
+            await OnEditConfirmClick.InvokeAsync();
+            _form.Submit();
+        }
+    }
+
+    private void HandleCancel()
+    {
+        _visible = false;
+    }
+
+    private void OnFinish(EditContext editContext)
+    {
+        _visible = false;
+    }
+}

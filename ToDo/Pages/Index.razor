@@ -1,0 +1,85 @@
+﻿@page "/"
+
+@using ToDo.Data
+@using ToDo.Components
+@inject ToDoService ToDoService
+
+<Input Placeholder="What needs to be done?" Style="width: 75%; position:relative; left:200px; height:50px; margin-bottom: 50px;" @bind-Value="@text" OnPressEnter="@AddItem"/>
+<style>
+    tbody tr .item-done {
+        text-decoration: line-through;
+        color: darkgray;
+    }
+</style>
+
+<Table DataSource="@toDoItemsSorted" TItem="@ToDoItem" Bordered>
+    <ChildContent Context="item">
+        <ActionColumn Title="Done?">
+            <Checkbox Checked="@item.IsDone" CheckedChange="() => ToggleDone(item)" />
+        </ActionColumn>
+        <Column Class="@(item.IsDone ? "item-done" : "")" TData="string" @bind-Field="@item.Title">@item.Title</Column>
+        <Column Class="@(item.IsDone ? "item-done" : "")" TData="string" @bind-Field="@item.Description">@item.Description</Column>
+        <Column Class="@(item.IsDone ? "item-done" : "")" TData="DateTime" @bind-Field="@item.CreatedTime" Title="Created" Sortable>@item.CreatedTime.ToString("dd.MM HH:mm")</Column>
+        <Column Class="@(item.IsDone ? "item-done" : "")" TData="DateTime" @bind-Field="@item.DoneTime" Title="Done" Sortable>
+            @{
+                if (item.IsDone)
+                            @item.DoneTime.ToString("dd.MM HH:mm"); 
+            }
+        </Column>
+        <ActionColumn Title="Actions">
+            <EditItem Item="@item" OnEditConfirmClick="UpdateItemsList"/>
+            <Icon Type="minus-circle" Theme="outline" OnClick="() => DeleteItem(item.Id)" Style="cursor:pointer" />
+        </ActionColumn>
+    </ChildContent>
+</Table>
+
+@code{
+    string text { get; set; }
+    private List<ToDoItem> toDoItems { get; set; }
+    public IEnumerable<ToDoItem> toDoItemsSorted { get; set; }
+
+
+    public async Task AddItem()
+    {
+        if (!String.IsNullOrEmpty(text))
+        {
+            var item = new ToDoItem(text);
+            await ToDoService.Add(item);
+            await UpdateItemsList();
+            text = String.Empty;
+        }
+    }
+
+    public async Task DeleteItem(int id)
+    {
+        await ToDoService.Delete(id);
+        await UpdateItemsList();
+    }
+
+    public async Task ToggleDone(ToDoItem item)
+    {
+        if (!item.IsDone)
+        {
+            item.IsDone = true;
+            item.DoneTime = DateTime.Now;
+        }
+        else
+        {
+            item.IsDone = false;
+            item.DoneTime = DateTime.MinValue;
+        }
+        await ToDoService.Update(item);
+        await UpdateItemsList();
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        await UpdateItemsList();
+    }
+
+    private async Task UpdateItemsList()
+    {
+        toDoItems = await ToDoService.GetAll();
+        toDoItemsSorted = toDoItems.OrderBy(item => item, new ToDoItemComparer());
+    }
+}
